@@ -24,7 +24,8 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.models.embedding import gen_word2vec as word2vec
+#from tensorflow.models.embedding import gen_word2vec as word2vec
+word2vec = tf.load_op_library(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'word2vec_ops.so'))
 
 flags = tf.app.flags
 
@@ -363,10 +364,10 @@ class Word2GMtrainer(object):
           if spherical:
             logdet = embedding_size*tf.log(epsilon + tf.squeeze(_a))
           else:
-            logdet = tf.reduce_sum(tf.log(epsilon + _a), reduction_indices=1, name='logdet')
+            logdet = tf.reduce_sum(tf.log(epsilon + _a), axis=1, name='logdet')
           ss_inv = 1./(epsilon + _a)
-          diff = tf.sub(m1, m2)
-          exp_term = tf.reduce_sum(diff*ss_inv*diff, reduction_indices=1, name='expterm')
+          diff = tf.subtract(m1, m2)
+          exp_term = tf.reduce_sum(diff*ss_inv*diff, axis=1, name='expterm')
           pe = -0.5*logdet - 0.5*exp_term
           return pe
 
@@ -377,8 +378,8 @@ class Word2GMtrainer(object):
           for cl2 in xrange(num_mixtures):
             log_e_list.append(partial_logenergy(cl1, cl2))
             mix_list.append(mix1[:,cl1]*mix2[:,cl2])
-        log_e_pack = tf.pack(log_e_list)
-        log_e_max = tf.reduce_max(log_e_list, reduction_indices=0)
+        log_e_stack = tf.stack(log_e_list)
+        log_e_max = tf.reduce_max(log_e_list, axis=0)
 
         if opts.max_pe:
           # Ben A: got this warning for max_pe
@@ -387,8 +388,8 @@ class Word2GMtrainer(object):
           log_e_argmax = tf.argmax(log_e_list, dimension=0)
           log_e = log_e_max*tf.gather(mix_list, log_e_argmax)
         else:
-          mix_pack = tf.pack(mix_list)
-          log_e = tf.log(tf.reduce_sum(mix_pack*tf.exp(log_e_pack-log_e_max), reduction_indices=0))
+          mix_stack = tf.stack(mix_list)
+          log_e = tf.log(tf.reduce_sum(mix_stack*tf.exp(log_e_stack-log_e_max), axis=0))
           log_e += log_e_max
         return log_e
         
@@ -414,7 +415,7 @@ class Word2GMtrainer(object):
         return loss
 
     loss = Lfunc(word_idxs, pos_idxs, neg_idxs)
-    tf.scalar_summary('loss', loss)
+    tf.summary.scalar('loss', loss)
 
     return loss
 
@@ -445,11 +446,11 @@ class Word2GMtrainer(object):
     opts = self._options
     # The training data. A text file.
     (words, counts, words_per_epoch, self._epoch, self._words, examples,
-     labels) = word2vec.skipgram(filename=opts.train_data,
-                                 batch_size=opts.batch_size,
-                                 window_size=opts.window_size,
-                                 min_count=opts.min_count,
-                                 subsample=opts.subsample)
+     labels) = word2vec.skipgram_word2vec(filename=opts.train_data,
+                                          batch_size=opts.batch_size,
+                                          window_size=opts.window_size,
+                                          min_count=opts.min_count,
+                                          subsample=opts.subsample)
     (opts.vocab_words, opts.vocab_counts,
      opts.words_per_epoch) = self._session.run([words, counts, words_per_epoch])
     opts.vocab_size = len(opts.vocab_words)
@@ -479,7 +480,7 @@ class Word2GMtrainer(object):
     # Properly initialize all variables.
     self.check_op = tf.add_check_numerics_ops()
 
-    tf.initialize_all_variables().run()
+    tf.global_variables_initializer().run()
 
     try:
       print('Try using saver version v2')
@@ -512,8 +513,8 @@ class Word2GMtrainer(object):
     """Train the model."""
     opts = self._options
     initial_epoch, initial_words = self._session.run([self._epoch, self._words])
-    summary_op = tf.merge_all_summaries()
-    summary_writer = tf.train.SummaryWriter(opts.save_path + "/epoch_%04d" % initial_epoch, self._session.graph)
+    summary_op = tf.summary.merge_all()
+    summary_writer = tf.summary.FileWriter(opts.save_path + "/epoch_%04d" % initial_epoch, self._session.graph)
     workers = []
     for _ in xrange(opts.concurrent_steps):
       t = threading.Thread(target=self._train_thread_body)
