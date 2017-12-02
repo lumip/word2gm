@@ -16,8 +16,6 @@ import sys
 import threading
 import time
 import math
-# Retrict to CPU only
-os.environ["CUDA_VISIBLE_DEVICES"]=""
 
 import numpy as np
 import tensorflow as tf
@@ -575,8 +573,7 @@ def main(_):
   opts = Options()
   print('Saving results to {}'.format(opts.save_path))
   with tf.Graph().as_default(), tf.Session() as session:
-    with tf.device("/cpu:0"):
-      model = Word2GMtrainer(opts, session)
+    model = Word2GMtrainer(opts, session)
     for _ in range(opts.epochs_to_train):
       model.train()  
     # Perform a final save.
