@@ -3,3 +3,4 @@ sftp-config.json
 *.pyc
 text8
 .ipynb_checkpoints
+word2vec_ops.so
