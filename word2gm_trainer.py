@@ -7,9 +7,9 @@ Adapted from tensorflow's word2vec.py
 (https://github.com/tensorflow/models/blob/master/tutorials/embedding/word2vec.py)
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+
+
+
 
 import os
 import sys
@@ -18,8 +18,6 @@ import time
 import math
 # Retrict to CPU only
 os.environ["CUDA_VISIBLE_DEVICES"]=""
-
-from six.moves import xrange  # pylint: disable=redefined-builtin
 
 import numpy as np
 import tensorflow as tf
@@ -374,8 +372,8 @@ class Word2GMtrainer(object):
       with tf.name_scope('logenergy') as scope:
         log_e_list = []
         mix_list = []
-        for cl1 in xrange(num_mixtures):
-          for cl2 in xrange(num_mixtures):
+        for cl1 in range(num_mixtures):
+          for cl2 in range(num_mixtures):
             log_e_list.append(partial_logenergy(cl1, cl2))
             mix_list.append(mix1[:,cl1]*mix2[:,cl2])
         log_e_stack = tf.stack(log_e_list)
@@ -493,7 +491,7 @@ class Word2GMtrainer(object):
     """Save the vocabulary to a file so the model can be reloaded."""
     opts = self._options
     with open(os.path.join(opts.save_path, "vocab.txt"), "w") as f:
-      for i in xrange(opts.vocab_size):
+      for i in range(opts.vocab_size):
         vocab_word = tf.compat.as_text(opts.vocab_words[i]).encode("utf-8")
         f.write("%s %d\n" % (vocab_word,
                              opts.vocab_counts[i]))
@@ -516,7 +514,7 @@ class Word2GMtrainer(object):
     summary_op = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(opts.save_path + "/epoch_%04d" % initial_epoch, self._session.graph)
     workers = []
-    for _ in xrange(opts.concurrent_steps):
+    for _ in range(opts.concurrent_steps):
       t = threading.Thread(target=self._train_thread_body)
       t.start()
       workers.append(t)
@@ -579,7 +577,7 @@ def main(_):
   with tf.Graph().as_default(), tf.Session() as session:
     with tf.device("/cpu:0"):
       model = Word2GMtrainer(opts, session)
-    for _ in xrange(opts.epochs_to_train):
+    for _ in range(opts.epochs_to_train):
       model.train()  
     # Perform a final save.
     model.saver.save(session,

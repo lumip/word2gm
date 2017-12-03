@@ -20,7 +20,7 @@ def load_SimLex999(filepath='evaluation_data/SimLex-999/SimLex-999.txt'):
     return word1, word2, score
 
 def load_data_format1(filename='EN-MC-30.txt', delim='\t', verbose=False):
-    if verbose: print 'Loading file', filename
+    if verbose: print('Loading file', filename)
     fpath = os.path.join('evaluation_data/multiple_datasets', filename)
     df = pd.read_csv(fpath, delimiter=delim, header=None)
     word1 = df[0].tolist()
@@ -80,8 +80,8 @@ def calculate_correlation(data_loader, metric, w2g, verbose=True, lower=False):
     nwords_dict = sum([w in w2g.word2id for w in distinct_words])
     if lower:
       nwords_dict = sum([w.lower() in w2g.word2id for w in distinct_words])
-    if verbose: print '# of pairs {} # words total {} # words in dictionary {}({}%)'\
-    .format(len(word1), ndistinct, nwords_dict, 100*nwords_dict/(1.*ndistinct))
+    if verbose: print('# of pairs {} # words total {} # words in dictionary {}({}%)'\
+    .format(len(word1), ndistinct, nwords_dict, 100*nwords_dict/(1.*ndistinct)))
     
     if lower:
       word1 = [word.lower() for word in word1]
@@ -96,9 +96,9 @@ def calculate_correlation(data_loader, metric, w2g, verbose=True, lower=False):
     #print 'scores', scores
     #print 'targets', targets        
     spr = scipy.stats.spearmanr(scores, targets)
-    if verbose: print 'Spearman correlation is {} with pvalue {}'.format(spr.correlation, spr.pvalue)
+    if verbose: print('Spearman correlation is {} with pvalue {}'.format(spr.correlation, spr.pvalue))
     pear = scipy.stats.pearsonr(scores, targets)
-    if verbose: print 'Pearson correlation', pear
+    if verbose: print('Pearson correlation', pear)
     spr_correlation = spr.correlation
     pear_correlation = pear[0]
     if np.any(np.isnan(scores)):
@@ -129,17 +129,17 @@ def quantitative_eval(model_names, ckpt_files=None, prefix_dir='', metric_funcs 
   # allow it to be called from other directory
   dir_path = os.path.dirname(os.path.realpath(__file__))
   for i, (model_abbrev, save_path) in enumerate(model_names):
-      if verbose: print 'Processing', save_path
+      if verbose: print('Processing', save_path)
       if True:
-          if verbose: print 'dir path =', dir_path
+          if verbose: print('dir path =', dir_path)
           save_path_full = os.path.join(dir_path, prefix_dir, save_path)
           ckpt_file = None if ckpt_files is None else ckpt_files[i]
           w2mg = Word2GM(save_path_full, ckpt_file=ckpt_file, verbose=verbose)
           for metric_name in metric_funcs:
               results = []
-              if verbose: print 'metric', metric_name
+              if verbose: print('metric', metric_name)
               for dgen in eval_datasets:
-                  if verbose: print 'data', dgen.__name__
+                  if verbose: print('data', dgen.__name__)
                   _, sp, pe = calculate_correlation(dgen, metric_name, w2mg, lower=lower, verbose=verbose)
                   #print scores
                   results.append(sp*100)
@@ -154,7 +154,7 @@ def to_tex(spearman_corrs, list_columns=None, new_column_names=None):
   if new_column_names is not None:
     reporting_results.columns = ['Dataset'] + new_column_names
   latex_version = reporting_results.to_latex(index=False, float_format=lambda _f: '{0:.4g}'.format(_f))
-  print latex_version
+  print(latex_version)
 
 def quanteval_plot_ind(model_folder, prefix_dir='', lower=False, verbose=False,
   debug=False):
@@ -207,7 +207,7 @@ def quantitative_eval_over_time(model_folder, prefix_dir='', lower=False):
   ckpt_nums, ckpt_names = find_list_ckpts(model_folder, prefix_dir=prefix_dir)
   scores = []
   for ckpt_num, ckpt_name in zip(ckpt_nums, ckpt_names):
-      print ckpt_name
+      print(ckpt_name)
       sp_corrs = quantitative_eval([(model_folder, model_folder)], [ckpt_name], prefix_dir=prefix_dir,
         lower=lower)
       sum_score = sum(sp_corrs[model_folder + '/max'])
@@ -247,17 +247,17 @@ def process_huang(filename='ehuang_sim_wcontext/SCWS/ratings.txt',
     ave_score = np.mean(np.array(scores))
         
     if verbose:
-      print line
-      print '---------'
-      print 'word {} has context'.format(word1)
-      print pre1
-      print post1
-      print '.........'
-      print 'word {} has context'.format(word2)
-      print pre2
-      print post2
-      print 'scores = ', scores
-      print 'average score = ', ave_score
+      print(line)
+      print('---------')
+      print('word {} has context'.format(word1))
+      print(pre1)
+      print(post1)
+      print('.........')
+      print('word {} has context'.format(word2))
+      print(pre2)
+      print(post2)
+      print('scores = ', scores)
+      print('average score = ', ave_score)
     result = (word1, pre1+post1, word2, pre2+post2, ave_score)
     result_list.append(result)
   return result_list
@@ -303,10 +303,10 @@ def quantitative_scws(model, prefix_dir='model_files',
       metric=metric, criterion=criterion, verbose=verbose)
     model_scores.append(model_score)
 
-  df['word1'], _, df['word2'], _, df['human scores'] = zip(*data_huang)
+  df['word1'], _, df['word2'], _, df['human scores'] = list(zip(*data_huang))
   df['model scores'] = model_scores
   if verbose:
-    print df
+    print(df)
 
   # compute spearman correlation
   spr = scipy.stats.spearmanr(model_scores, human_scores)
@@ -358,7 +358,7 @@ def calculate_entailment(model, prefix_dir='', metric='maxdot', verbose=False, r
     precs = []
     f1s = []
 
-    if verbose: print scores
+    if verbose: print(scores)
 
     search_space = None
     if metric == 'maxdot':
@@ -367,18 +367,18 @@ def calculate_entailment(model, prefix_dir='', metric='maxdot', verbose=False, r
       search_space = np.linspace(-100,0,2000)
 
     for thres in search_space:
-      if verbose: print 'Threshold = ', thres
+      if verbose: print('Threshold = ', thres)
       thres_array = np.array(len(labels)*[thres])
       num_agree = np.sum(labels == (np.array(scores) > thres_array))
       num_above = np.sum((np.array(scores) > thres_array))
       precs.append(num_agree/(1.*len(labels)))
       f1 = f1_score(labels, np.array(scores) > thres_array)
       f1s.append(f1)
-      if verbose: print 'num above = {} num agree = {} f1 = {}'.format(num_above, num_agree, f1)
-    if verbose: print precs
+      if verbose: print('num above = {} num agree = {} f1 = {}'.format(num_above, num_agree, f1))
+    if verbose: print(precs)
     best_prec = np.max(np.array(precs))
     best_f1 = np.max(np.array(f1s))
-    if verbose: print 'Best precision {} Best F1 {}'.format(best_prec, best_f1)
+    if verbose: print('Best precision {} Best F1 {}'.format(best_prec, best_f1))
     return best_prec, best_f1
 
 def calculate_scores_entailment(w2mg, wlist1, wlist2, metric='maxdot'):
