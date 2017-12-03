@@ -350,7 +350,7 @@ def calculate_entailment(model, prefix_dir='', metric='maxdot', verbose=False, r
     else:
       w2mg = model
     wlist1, wlist2 = load_entailment_baroni12()
-    labels = np.array(len(wlist1)/2*[1] + len(wlist1)/2*[0])
+    labels = np.array(len(wlist1)//2*[1] + len(wlist1)//2*[0])
     scores = np.array(calculate_scores_entailment(w2mg, wlist1, wlist2, metric))
     if reverse:
       scores = np.array(calculate_scores_entailment(w2mg, wlist2, wlist1, metric))

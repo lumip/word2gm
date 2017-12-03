@@ -119,7 +119,7 @@ class Word2GM(object):
 
     def idxs2words(self, idxs):
         # convert a list of strings to a list of words
-        words = ["{}:{}".format(self.id2word[idx/self.num_mixtures], idx%self.num_mixtures) for idx in idxs]
+        words = ["{}:{}".format(self.id2word[idx // self.num_mixtures], idx%self.num_mixtures) for idx in idxs]
         return words
 
     def sort_low_var(self, idxs):
@@ -138,6 +138,7 @@ class Word2GM(object):
         highsim_idxs = dist.argsort()[::-1]
         # select top num_nns (linear) indices with the highest cosine similarity
         highsim_idxs = highsim_idxs[:num_nns]
+        highsim_idxs = (highsim_idxs).astype(int).tolist()
         dist_val = dist[highsim_idxs]
         words = self.idxs2words(highsim_idxs)
         var_val = np.array([self.detA[_idx] for _idx in highsim_idxs])
