@@ -1,7 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from matplotlib import pyplot as plt
-from tensorflow.models.embedding import gen_word2vec as word2vec
+#from tensorflow.models.embedding import gen_word2vec as word2vec
+word2vec = tf.load_op_library(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'word2vec_ops.so'))
 import os, re
 import operator
 import sys
@@ -370,11 +371,10 @@ class Word2GM(object):
         with tf.Graph().as_default() as g:
             with tf.Session(graph=g) as session:
                 embedding_var = tf.Variable(mus, name='mus')
-                init = tf.initialize_all_variables()
-                init.run()
+                tf.global_variables_initializer().run()
                 saver = tf.train.Saver()
                 saver.save(session, os.path.join(emb_logdir, "model.ckpt"), 0)
-                summary_writer = tf.train.SummaryWriter(emb_logdir)
+                summary_writer = tf.summary.FileWriter(emb_logdir)
                 config = projector.ProjectorConfig()
                 embedding = config.embeddings.add()
                 embedding.tensor_name = embedding_var.name
