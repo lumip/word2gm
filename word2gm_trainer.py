@@ -473,6 +473,9 @@ class Word2GMtrainer(object):
     else:
       # Using Standard SGD
       self.optimize(loss)
+
+    tf.scalar_summary('learning rate', self._lr)
+
     # Properly initialize all variables.
     self.check_op = tf.add_check_numerics_ops()
 
@@ -510,7 +513,7 @@ class Word2GMtrainer(object):
     opts = self._options
     initial_epoch, initial_words = self._session.run([self._epoch, self._words])
     summary_op = tf.merge_all_summaries()
-    summary_writer = tf.train.SummaryWriter(opts.save_path, self._session.graph)
+    summary_writer = tf.train.SummaryWriter(opts.save_path + "/epoch_%04d" % initial_epoch, self._session.graph)
     workers = []
     for _ in xrange(opts.concurrent_steps):
       t = threading.Thread(target=self._train_thread_body)
@@ -542,6 +545,11 @@ class Word2GMtrainer(object):
       if epoch != initial_epoch:
         break
       step_manual += 1
+
+    # save the model after each epoch
+    self.saver.save(self._session,
+        os.path.join(opts.save_path, "model_epoch_%04d.ckpt" % initial_epoch),
+        global_step=step.astype(int))
 
     for t in workers:
       t.join()
