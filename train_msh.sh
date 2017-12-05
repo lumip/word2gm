@@ -1,0 +1,1 @@
+python word2gm_trainer.py --num_mixtures 2 --train_data data/msh_train.txt --spherical --embedding_size 50 --epochs_to_train 200 --var_scale 0.05 --save_path modelfiles/msh-k2-lr05-v05-e200-ss3-adg --learning_rate 0.05  --subsample 1e-5 --adagrad  --min_count 3 --batch_size 2048 --max_to_keep 10 --checkpoint_interval 500 --window_size 10

@@ -1,28 +1,18 @@
-# Word2GM (Word to Gaussian Mixture)
+# Acronym Disambiguation using Word2GM (Word to Gaussian Mixture)
 
-This is an implementation of the model in *[Athiwaratkun and Wilson](https://arxiv.org/abs/1704.08424), Multimodal Word Distributions, ACL 2017*.
+We approach the problem of acronym disambiguation in a subset of the MSH dataset (todo: reference) employing the Word2GM implementation of *[Athiwaratkun and Wilson](https://arxiv.org/abs/1704.08424), Multimodal Word Distributions, ACL 2017*.
 
-We represent each word in the dictionary as a Gaussian Mixture distribution and train it using a max-margin objective based on expected likelihood kernel energy function.
+This repository is a fork of the [original implementation](https://github.com/benathi/word2gm) with the following modifications:
+- the source code was made compatible to TensorFlow 1.4
+- added code for preprocessing the MSH dataset and performing acronym disambiguation
 
-The BibTeX entry for the paper is:
+## Licenses
+To achieve TensorFlow 1.4 compatabilty, the SkipGram custom-op kernel from a [TensorFlow tutorial repository](https://github.com/tensorflow/models/tree/master/tutorials/embedding) as referenced the [Tensorflow word2vec tutorial](https://www.tensorflow.org/tutorials/word2vec) was copied, which is suplied under the Apache Licence v2 (find the full license text in *APACHE_LICENSE*). 
 
-```bibtex
-@InProceedings{athiwilson2017,
-    author = {Ben Athiwaratkun and Andrew Gordon Wilson},
-    title = {Multimodal Word Distributions},
-    booktitle = {Conference of the Association for Computational Linguistics (ACL)},
-    year = {2017}
-}
-```
-
-## Training Data
-The data used in the paper is the concatenation of *ukWaC* and *WaCkypedia_EN*, both of which can be requested [here](http://wacky.sslmit.unibo.it/doku.php?id=download).
-
-We include a script **get_text8.sh** to download a small dataset **text8** which can be used to train word embeddings. We note that we can observe the polysemies behaviour even on a small dataset such as text8. That is, some word such as 'rock' has one Gaussian component being close to 'jazz', 'pop', 'blue' and another Gaussian component close to 'stone', 'sediment', 'basalt', etc.
-
+The original code and all modifications are provided under the terms of the BSD 3-Clause License (see file *License*).
 
 ## Dependencies
-Tensorflow 0.12 (version number important)
+Python 3, Tensorflow 1.4
 
 [ggplot](https://github.com/yhat/ggplot.git)
 ```
@@ -33,52 +23,36 @@ conda install -c conda-forge ggplot
 pip install git+https://github.com/yhat/ggplot.git
 ```
 
-## Training
+## Usage Guide
+Below are the steps for training and visualization.
 
-For text8, the training script with the proper hyperparameters are in **train_text8.sh**
+1.1. Obtain the dataset
 
-For UKWAC+Wackypedia, the training script **train_wac.sh** contains our command to replicate the results.
+1.2. Preprocess (assuming that the MSH dataset resides in *MSH_location* in *.arff* format:
+``` python  preprocess_MSH_corpus.py MSH_location```
 
-
-## Steps
-Below are the steps for training and visualization with text8 dataset.
-1. Obtain the dataset and train.
+2. Compile the custom-op and train:
 ```
-bash get_text8.sh
-python word2gm_trainer.py --num_mixtures 2 --train_data data/text8 --spherical --embedding_size 50 --epochs_to_train 10 --var_scale 0.05 --save_path modelfiles/t8-2s-e10-v05-lr05d-mc100-ss5-nwout-adg-win10 --learning_rate 0.05  --subsample 1e-5 --adagrad  --min_count 5 --batch_size 128 --max_to_keep 100 --checkpoint_interval 500 --window_size 10
-# or simply calling ./train_text8.sh
+./compile_word2vec_ops.sh
+
+python word2gm_trainer.py --num_mixtures 2 --train_data data/msh_train.txt --spherical --embedding_size 50 --epochs_to_train 200 --var_scale 0.05 --save_path modelfiles/msh-k2-lr05-v05-e200-ss3-adg --learning_rate 0.05  --subsample 1e-5 --adagrad  --min_count 3 --batch_size 2048 --max_to_keep 10 --checkpoint_interval 500 --window_size 10
+# or simply calling ./train_msh.sh
 ```
 See at the end of page for details on training options.
 
-2. Note that the model will be saved at modelfiles/t8-2s-e10-v05-lr05d-mc100-ss5-nwout-adg-win10. The code to analyze the model and visualize the results is in **Analyze Text8 Model.ipynb**. See model API below.
+3. Note that the model will be saved at modelfiles/msh-k2-lr05-v05-e200-ss3-adg. The code to analyze the model and visualize the results is in **Analyze MSH Model.ipynb**. See model API below.
 
 
-3. We can visualize the word embeddings itself by executing the following command in iPynb:
+4. The ```Word2GM``` class in file **word2gm_loader.py** contains method ```visualize_embedding()``` which prepares the word embeddings to be visualized by TensorFlow's Tensorboard. It is invoked during execution of the **Analyze MSH Model.ipynb** notebook mentioned above.
+
+Once the embeddings are prepared, the visualization can be done by shell command:
 ```
-w2gm_text8_2s.visualize_embeddings()
-```
-This command prepares the word embeddings to be visualized by Tensorflow's Tensorboard. Once the embeddings are prepared, the visualization can be done by shell command:
-```
-tensorboard --logdir=modelfiles/t8-2s-e10-v05-lr05d-mc100-ss5-nwout-adg-win10_emb --port=6006
+tensorboard --logdir=modelfiles/msh-k2-lr05-v05-e200-ss3-adg_emb --port=6006
 ```
 Then, navigate the browser to (http://localhost/6006) (or a url of the appropriate machine that has the model) and click at the **Embeddings** tab. Note that the **logdir** folder is the "**original-folder**" + "_emb".
 
 ## Visualization
 The Tensorboard embeddings visualization tools (please use Firefox or Chrome) allow for nearest neighbors query, in addition to PCA and t-sne visualization. We use the following notation: *x:i* refers to the *i*th mixture component of word 'x'. For instance, querying for 'bank:0' yields 'river:1', 'confluence:0', 'waterway:1' as the nearest neighbors, which means that this component of 'bank' corresponds to river bank. On the other hand, querying for 'bank:1' gives the nearest neighbors 'banking:1', 'banker:0', 'ATM:0', which indicates that this component of 'bank' corresponds to financial bank.
-
-
-We provide visualization (compatible with Chrome and Firefox) for our models trained on *ukWaC+WaCkypedia* for [K=1](http://35.161.153.223:6001), [K=2](http://35.161.153.223:6002), and [K=3](http://35.161.153.223:6003).
-
-
-## Trained Model
-We provide a trained model for K=2 [here](http://35.161.153.223:6004/w2gm-k2-d50.tar.gz). To analyze the model, see **Analyze Model.ipynb**. The code expects the model to be extracted to directory **modelfiles/w2gm-k2-d50/**.
-
-
-### Training on large datasets
-Our code relies on the word sampling implementation of Tensorflow. Existing implementation of Tensorflow can handle a dataset up to a certain size (~4GB) but would throw an error for larger datasets such as *ukWaC+WaCkypedia* (17GB).
-
-To train on a very large dataset, we provide a version of Tensorflow (0.11.0rc1) with a modified SkipGram method that can handle large datasets (https://github.com/benathi/tensorflow_0.11_robust_skipgram). You can build Tensorflow from source using this version. (See instructions for building from source [here](https://www.tensorflow.org/versions/r0.11/get_started/os_setup#installing_from_sources).) Large datasets also require large RAM since we load the entire dataset into memory. For *ukWaC+WaCkypedia*, a required RAM is about 32GB+.
-
 
 
 ## Training Options
