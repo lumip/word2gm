@@ -41,8 +41,6 @@ def evaluate(model_dir, test_file_path):
                                             # into determining the best mixture component itself
             except:
                 pass
-            #predictions[i] = model.find_best_cluster(acronym_id, text_ids, criterion='max', verbose=False)
-            #predictions[i] = model.find_best_cluster_posteriors(acronym_id, text_ids, criterion='mean', verbose=True)
             prediction_probas[i,:] = model.compute_cluster_posteriors_over_context(acronym_id, text_ids, criterion='mean', verbose=False)
         except KeyError:
             print("acronym " + acronym + " is unknown to the model, skipping test instance.")
@@ -65,10 +63,8 @@ def evaluate(model_dir, test_file_path):
             sense_id[sense] = i
             for inst_id in index[acronym][sense]:
                 allocation_matrix[i][:] += prediction_probas[inst_id]
-                #prediction = predictions[inst_id]
-                #if prediction > -1:
-                #    allocation_matrix[i][prediction] += 1
         best_comp_per_sense = np.argmax(allocation_matrix / np.sum(allocation_matrix, axis=0), axis=1)
+        best_comp_per_sense = np.argmax(allocation_matrix / (np.sum(allocation_matrix, axis=0) + 0.0001), axis=1)
 
         # compute precision for all senses (note: no penalty for assigning same component to different senses. this should be penalized but isn't right now)
         total_correct_prediction_count = 0
