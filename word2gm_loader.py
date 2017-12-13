@@ -50,7 +50,7 @@ class Word2GM(object):
         new_saver = tf.train.import_meta_graph(meta_graph_path)
         new_saver.restore(self.session, latest_ckpt_file)
 
-        [mus, logsigs] = self.session.run(['mu:0', 'sigma:0'])
+        [mus, logsigs, mus_out, logsigs_out] = self.session.run(['mu:0', 'sigma:0', 'mu_out:0', 'sigma_out:0'])
         self.num_mixtures = 1 if len(mus.shape) == 2 else mus.shape[1]
         self.vocab_size = mus.shape[0]
         if verbose: print(('Number of mixtures = ', self.num_mixtures))
@@ -59,11 +59,13 @@ class Word2GM(object):
         if self.num_mixtures >= 2:
             #: if num_mixtures = 1 but mus.shape is 3 dim, then it's a new code
             # this is handled by the softmax case (even though it's 1 dimensional)
-            [mixture_score] = self.session.run(['mixture:0'])
+            [mixture_score, mixture_score_out] = self.session.run(['mixture:0', 'mixture_out:0'])
             self.word_dim = mus.shape[2]
             ## store vars
             self.mus = np.copy(mus)
             self.logsigs = np.copy(logsigs)
+            self.mus_out = np.copy(mus_out)
+            self.logsigs_out = np.copy(logsigs_out)
             if len(mixture_score.shape) == 1:
                 # word2mixgauss code
                 assert self.num_mixtures == 2
@@ -71,12 +73,18 @@ class Word2GM(object):
                 self.mixture = np.ones((self.vocab_size, self.num_mixtures))
                 self.mixture[:,0] = 1.0/(1.0 + np.exp(-mixture_score))
                 self.mixture[:,1] = 1.0 - self.mixture[:,0]
+                self.mixture_out = np.ones((self.vocab_size, self.num_mixtures))
+                self.mixture_out[:,0] = 1.0/(1.0 + np.exp(-mixture_score_out))
+                self.mixture_out[:,1] = 1.0 - self.mixture_out[:,0]
             else:
                 # This is for word2multigauss code: do a softmax
                 assert len(mixture_score.shape) == 2 and mixture_score.shape[1] == self.num_mixtures
                 # calculate softmax
                 diff_exp = np.exp(mixture_score - np.max(mixture_score, axis=1, keepdims=True))
                 self.mixture = diff_exp/np.sum(diff_exp, axis=1, keepdims=True)
+
+                diff_exp_out = np.exp(mixture_score_out - np.max(mixture_score_out, axis=1, keepdims=True))
+                self.mixture_out = diff_exp_out/np.sum(diff_exp_out, axis=1, keepdims=True)
         else:
             # In this case, num_mixures = 1: it can be either the old model and the new model
             assert self.num_mixtures == 1, 'Expecting 1 mixture'
@@ -103,6 +111,8 @@ class Word2GM(object):
         self.mus_n = np.reshape(self.mus_n_multi, 
                 (self.vocab_size*self.num_mixtures, self.word_dim),
                 order='C')
+        norm_mu_out = np.linalg.norm(self.mus_out, axis=2, keepdims = True)
+        self.mus_out_n_multi = self.mus_out/norm_mu_out
         # This might be incorrect for spherical case
         # need to be logsig *
         self.detA = np.sum(self.logsigs, axis=2)
@@ -185,6 +195,10 @@ class Word2GM(object):
     #### 
     def dot(self, idx1, cl1, idx2, cl2):
         _res = np.dot(self.mus_n_multi[idx1, cl1], self.mus_n_multi[idx2, cl2])
+        return _res
+
+    def dot_inout(self, idx1, cl1, idx2, cl2):
+        _res = np.dot(self.mus_n_multi[idx1, cl1], self.mus_out_n_multi[idx2, cl2])
         return _res
 
     def maxdot(self, idx1, idx2, verbose=False):
@@ -298,14 +312,19 @@ class Word2GM(object):
         return log_energy
 
     # this is to determine the best cluster based on context
-    def find_best_cluster(self, w, context, verbose=False, criterion='max'):
+    def find_best_cluster(self, w, context, verbose=False, criterion='max', emb='inin'):
         assert criterion in ['max', 'mean', 'mean_of_max']
+        assert emb in ['inin','inout']
         scores = np.zeros((self.num_mixtures))
         for i in range(self.num_mixtures):
             all_scores = np.zeros((len(context), self.num_mixtures))
             for j, context_word in enumerate(context):
                 for context_cl in range(self.num_mixtures):
-                    all_scores[j, context_cl] = self.dot(w, i, context_word, context_cl)
+                    #all_scores[j, context_cl] = self.dot(w, i, context_word, context_cl)
+                    if emb == 'inin':
+                        all_scores[j, context_cl] = self.dot(w, i, context_word, context_cl)
+                    elif emb == 'inout':
+                        all_scores[j, context_cl] = self.dot_inout(w, i, context_word, context_cl)
             if criterion == 'max':
                 scores[i] = np.max(all_scores)
             elif criterion == 'mean':
