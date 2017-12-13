@@ -297,6 +297,42 @@ class Word2GM(object):
         log_energy = max_partial_energy + np.log(energy)
         return log_energy
 
+    def posterior_c(self, w1, w2):
+        num_mix = self.num_mixtures
+        mu1 = self.mus[w1]
+        mu2 = self.mus[w2]
+        sigma1 = np.exp(self.logsigs[w1])
+        sigma2 = np.exp(self.logsigs[w2])
+        mix1 = self.mixture[w1]
+        mix2 = self.mixture[w2]
+        def partial_energy(cl1, cl2):
+            # cl1, cl2 are 'cluster' indices
+            _a = sigma1[cl1] + sigma2[cl2]
+            _res = -0.5*np.sum(np.log(_a))
+            ss_inv = 1./_a
+            diff = mu1[cl1] - mu2[cl2]
+            _res += -0.5*np.sum(
+                diff*ss_inv*diff
+            )
+            return _res
+
+        partial_energies = np.zeros((num_mix, num_mix))
+        for _i in range(num_mix):
+            for _j in range(num_mix):
+                partial_energies[_i,_j] = partial_energy(_i, _j)
+
+        # for numerical stability
+        max_partial_energy = np.max(partial_energies)
+        posteriors = np.zeros(num_mix)
+        for _i in range(num_mix):
+            energy = 0
+            for _j in range(num_mix):
+                energy += mix2[_j]*np.exp(partial_energies[_i,_j] - max_partial_energy)
+            energy *= mix1[_i]
+            posteriors[_i] = np.exp(max_partial_energy) * energy
+        posteriors = posteriors / np.sum(posteriors)
+        return posteriors
+
     # this is to determine the best cluster based on context
     def find_best_cluster(self, w, context, verbose=False, criterion='max'):
         assert criterion in ['max', 'mean', 'mean_of_max']
@@ -320,6 +356,28 @@ class Word2GM(object):
             if verbose:
                 print('Mixture ', i) 
                 print('all scores = {} with aggregate score = {}'.format(all_scores, scores[i]))
+        cl_max = np.argmax(scores)
+        return cl_max
+
+    def compute_cluster_posteriors_over_context(self, w, context, verbose=False, criterion='mean'):
+        assert criterion in ['max', 'mean']
+        scores = np.zeros((self.num_mixtures))
+        all_scores = np.zeros((len(context), self.num_mixtures))
+        for j, context_word in enumerate(context):
+            all_scores[j, :] = self.posterior_c(w, context_word)
+        if criterion == 'max':
+            scores = np.max(all_scores, axis=0)
+        elif criterion == 'mean':
+            scores = np.mean(all_scores, axis=0)
+        assert(len(scores) == self.num_mixtures)
+
+        if verbose:
+            print('all scores = {} with aggregate score = {}'.format(all_scores, scores))
+        return scores
+
+
+    def find_best_cluster_posteriors(self, w, context, verbose=False, criterion='max'):
+        scores = self.compute_cluster_posteriors_over_context(w, context, verbose, criterion)
         cl_max = np.argmax(scores)
         return cl_max
 

@@ -28,7 +28,8 @@ def evaluate(model_dir, test_file_path):
     # predict senses
     print("performing sense predictions..")
     unknown_acronyms = 0
-    predictions = [-1] * len(test_instances)
+    #predictions = [-1] * len(test_instances)
+    prediction_probas = np.zeros((len(test_instances), model.num_mixtures))
     for i, inst in enumerate(test_instances):
         acronym = inst[0].lower()
         text = inst[2]
@@ -40,10 +41,14 @@ def evaluate(model_dir, test_file_path):
                                             # into determining the best mixture component itself
             except:
                 pass
-            predictions[i] = model.find_best_cluster(acronym_id, text_ids, criterion='max', verbose=False)
+            #predictions[i] = model.find_best_cluster(acronym_id, text_ids, criterion='max', verbose=False)
+            #predictions[i] = model.find_best_cluster_posteriors(acronym_id, text_ids, criterion='mean', verbose=True)
+            prediction_probas[i,:] = model.compute_cluster_posteriors_over_context(acronym_id, text_ids, criterion='mean', verbose=False)
         except KeyError:
             print("acronym " + acronym + " is unknown to the model, skipping test instance.")
             unknown_acronyms += 1
+
+    predictions = np.argmax(prediction_probas, axis=1)
 
     # associate mixture component number from model with class label from test data and compute precision
     print("associating predictions with labels and computing precision...")
@@ -51,27 +56,32 @@ def evaluate(model_dir, test_file_path):
     for acronym in index:
         label_association = dict()
         precisions = dict()
-        allocation_matrix = np.ones((len(index[acronym]), model.num_mixtures))
+        allocation_matrix = np.zeros((len(index[acronym]), model.num_mixtures))
         sense_id = dict()
 
-        # assign to each sense/label the component for which the relative amount of samples carrying that label is hights, i.e., max_{component}( #samples_component_and_label / #samples_component )
+        # assign to each sense/label the component for which the relative amount of samples carrying that label is highest, i.e., max_{component}( #samples_component_and_label / #samples_component )
         # note[Lukas]: there are probably far better solutions than this quick and dirty approach
         for i, sense in enumerate(index[acronym]):
             sense_id[sense] = i
             for inst_id in index[acronym][sense]:
-                prediction = predictions[inst_id]
-                if prediction > -1:
-                    allocation_matrix[i][prediction] += 1
+                allocation_matrix[i][:] += prediction_probas[inst_id]
+                #prediction = predictions[inst_id]
+                #if prediction > -1:
+                #    allocation_matrix[i][prediction] += 1
         best_comp_per_sense = np.argmax(allocation_matrix / np.sum(allocation_matrix, axis=0), axis=1)
 
         # compute precision for all senses (note: no penalty for assigning same component to different senses. this should be penalized but isn't right now)
+        total_correct_prediction_count = 0
+        total_sample_count = 0
         for sense in index[acronym]:
             correct_class = best_comp_per_sense[sense_id[sense]]
             label_association[sense] = correct_class
             correct_prediction_count = sum([1 if predictions[inst_id] == correct_class else 0 for inst_id in index[acronym][sense]])
             precision = correct_prediction_count / len(index[acronym][sense])
             precisions[sense] = (correct_prediction_count, precision)
-        results[acronym] = (label_association, precisions)
+            total_correct_prediction_count += correct_prediction_count
+            total_sample_count += len(index[acronym][sense])
+        results[acronym] = (label_association, precisions, (total_correct_prediction_count / total_sample_count))
 
     return results
 
