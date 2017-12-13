@@ -311,7 +311,8 @@ class Word2GM(object):
         log_energy = max_partial_energy + np.log(energy)
         return log_energy
 
-    def posterior_c(self, w1, w2):
+    def posterior_c(self, w1, w2, emb='inin'):
+        assert emb in ['inin','inout']
         num_mix = self.num_mixtures
         mu1 = self.mus[w1]
         mu2 = self.mus[w2]
@@ -319,6 +320,10 @@ class Word2GM(object):
         sigma2 = np.exp(self.logsigs[w2])
         mix1 = self.mixture[w1]
         mix2 = self.mixture[w2]
+        if emb == 'inout':
+            mu2 = self.mus_out[w2]
+            sigma2 = np.exp(self.logsigs_out[w2])
+            mix2 = self.mixture_out[w2]
         def partial_energy(cl1, cl2):
             # cl1, cl2 are 'cluster' indices
             _a = sigma1[cl1] + sigma2[cl2]
@@ -378,12 +383,13 @@ class Word2GM(object):
         cl_max = np.argmax(scores)
         return cl_max
 
-    def compute_cluster_posteriors_over_context(self, w, context, verbose=False, criterion='mean'):
+    def compute_cluster_posteriors_over_context(self, w, context, verbose=False, criterion='mean', emb='inin'):
         assert criterion in ['max', 'mean']
+        assert emb in ['inin','inout']
         scores = np.zeros((self.num_mixtures))
         all_scores = np.zeros((len(context), self.num_mixtures))
         for j, context_word in enumerate(context):
-            all_scores[j, :] = self.posterior_c(w, context_word)
+            all_scores[j, :] = self.posterior_c(w, context_word, emb=emb)
         if criterion == 'max':
             scores = np.max(all_scores, axis=0)
         elif criterion == 'mean':
