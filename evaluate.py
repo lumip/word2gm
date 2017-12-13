@@ -30,7 +30,7 @@ def evaluate(model_dir, test_file_path):
     unknown_acronyms = 0
     predictions = [-1] * len(test_instances)
     for i, inst in enumerate(test_instances):
-        acronym = inst[0]
+        acronym = inst[0].lower()
         text = inst[2]
         try:
             acronym_id = model.word2id[acronym]
