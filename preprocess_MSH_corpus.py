@@ -21,7 +21,7 @@ class Dataset:
         #text = re.sub(r'\.(\S)', r'. \1', text) # separating space between titel and abstract text
         text = re.sub(r'\W+(\s)', r' \1', text) # remove all non-word characters (brackets, dashes, dots,...) at the beginning of words
         text = re.sub(r'(\s)\W+', r' \1', text) # remove all non-word characters (brackets, dashes, dots,...) at the end of words
-        return text
+        return text.lower()
 
     """ loads all files with name "<acronym>_(.*).arff" from the provided corpus_path.
     extracts the acronym from the file path and title-abstract text as well as correct classification label for each sample from the file contents.
@@ -115,10 +115,27 @@ class Dataset:
         random.shuffle(test_set)
         return train_set, test_set
 
+    """ performs a train/test split and returns train_set_sample_ids, test_set_sample_ids for a single acronym.
+    performs a train/test split with ratio (1-test_ratio):test_ratio for each acronym-sense sample subset. joins all subset splits and shuffles before returning.
+    """
+    def get_train_test_split_ids_for_acronym(self, acronym, test_ratio = 0.2):
+        train_set, test_set = [], []
+        for sense in self.index[acronym]:
+            sense_sample_set = self.index[acronym][sense]
+            sense_count = len(sense_sample_set)
+            sense_sample_set = random.sample(sense_sample_set, sense_count) # imitiate random.shuffle but have a return value instead of manipulating list in pace
+                                                                            # (which would be bad as the list is a reference into our object's main index)
+            test_set = test_set + sense_sample_set[:int(sense_count * test_ratio)]
+            train_set = train_set + sense_sample_set[int(sense_count * test_ratio):]
+        random.shuffle(train_set)
+        random.shuffle(test_set)
+        return train_set, test_set
+
 
 if __name__ == '__main__':
     dataset = Dataset(sys.argv[1])
     print(dataset.get_acronym_stats())
     train_set, test_set = dataset.get_train_test_split_ids()
     dataset.dump_single_line_texts_file(train_set, "data/msh_train.txt")
-    dataset.dump_multi_line_corpus_file(test_set, "data/msh_text.txt")
+    dataset.dump_multi_line_corpus_file(train_set, "data/msh_train_with_labels.txt")
+    dataset.dump_multi_line_corpus_file(test_set, "data/msh_test_with_labels.txt")
