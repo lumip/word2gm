@@ -31,7 +31,7 @@ Below are the steps for training and visualization.
 1.2. Preprocess (assuming that the MSH dataset resides in *MSH_location* in *.arff* format:
 ``` python  preprocess_MSH_corpus.py MSH_location```
 
-2. Compile the custom-op and train:
+1.3. Compile the custom-op and train:
 ```
 ./compile_word2vec_ops.sh
 
@@ -40,16 +40,22 @@ python word2gm_trainer.py --num_mixtures 2 --train_data data/msh_train.txt --sph
 ```
 See at the end of page for details on training options.
 
-3. Note that the model will be saved at modelfiles/msh-k2-lr05-v05-e200-ss3-adg. The code to analyze the model and visualize the results is in **Analyze MSH Model.ipynb**. See model API below.
+1.4. Note that the model will be saved at modelfiles/msh-k2-lr05-v05-e200-ss3-adg. The code to analyze the model and visualize the results is in **Analyze MSH Model.ipynb**. See model API below.
 
 
-4. The ```Word2GM``` class in file **word2gm_loader.py** contains method ```visualize_embedding()``` which prepares the word embeddings to be visualized by TensorFlow's Tensorboard. It is invoked during execution of the **Analyze MSH Model.ipynb** notebook mentioned above.
+1.5. The ```Word2GM``` class in file **word2gm_loader.py** contains method ```visualize_embedding()``` which prepares the word embeddings to be visualized by TensorFlow's Tensorboard. It is invoked during execution of the **Analyze MSH Model.ipynb** notebook mentioned above.
 
 Once the embeddings are prepared, the visualization can be done by shell command:
 ```
 tensorboard --logdir=modelfiles/msh-k2-lr05-v05-e200-ss3-adg_emb --port=6006
 ```
 Then, navigate the browser to (http://localhost/6006) (or a url of the appropriate machine that has the model) and click at the **Embeddings** tab. Note that the **logdir** folder is the "**original-folder**" + "_emb".
+
+1.6. The script **evaluate.py** performs acronym disambiguation using the trained model and the test set split off the MSH corpus by **preprocess_MSH_corpus.py**. You have to pass in the locations of both:
+```
+python evaluate.py modelfiles/msh-k2-lr05-v05-e200-ss3-adg data/msh_test_with_labels.txt
+```
+The script uses the **find_best_cluster** method in **word2gm_loader.py** from the original implementation of word2gm to determine the mixture component of an acronym most likely for a given context. Since this method disregards the fact that words are modelled as distribution mixtures to some extent by performing only pair-wise comparisons of modes for all mixture pairs between acronym and context word, we provide an alternative implementation in the **disambiguate_posterior** branch of this repository.
 
 ## Visualization
 The Tensorboard embeddings visualization tools (please use Firefox or Chrome) allow for nearest neighbors query, in addition to PCA and t-sne visualization. We use the following notation: *x:i* refers to the *i*th mixture component of word 'x'. For instance, querying for 'bank:0' yields 'river:1', 'confluence:0', 'waterway:1' as the nearest neighbors, which means that this component of 'bank' corresponds to river bank. On the other hand, querying for 'bank:1' gives the nearest neighbors 'banking:1', 'banker:0', 'ATM:0', which indicates that this component of 'bank' corresponds to financial bank.
