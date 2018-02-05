@@ -159,13 +159,13 @@ class Options(object):
     self.num_mixtures = FLAGS.num_mixtures # incorporated. needs testing
 
     # upper bound of norm of mu
-    self.norm_cap = FLAGS.norm_cap 
+    self.norm_cap = FLAGS.norm_cap
 
     # element-wise lower bound for sigma
-    self.lower_sig = FLAGS.lower_sig 
+    self.lower_sig = FLAGS.lower_sig
 
     # element-wise upper bound for sigma
-    self.upper_sig = FLAGS.upper_sig 
+    self.upper_sig = FLAGS.upper_sig
 
     # whether to use spherical or diagonal covariance
     self.spherical = FLAGS.spherical   ## default to False please
@@ -304,17 +304,17 @@ class Word2GMtrainer(object):
     logvar_scale = math.log(var_scale)
     print('mu_scale = {} var_scale = {}'.format(mu_scale, var_scale))
     if spherical:
-      logsigs = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures,1], 
+      logsigs = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures,1],
                                               logvar_scale, logvar_scale), name='sigma')
       if opts.wout:
-        logsigs_out = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures,1], 
+        logsigs_out = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures,1],
                                               logvar_scale, logvar_scale), name='sigma_out')
 
     else:
-      logsigs = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures, embedding_size], 
+      logsigs = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures, embedding_size],
                                               logvar_scale, logvar_scale), name='sigma')
       if opts.wout:
-        logsigs_out = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures, embedding_size], 
+        logsigs_out = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures, embedding_size],
                                               logvar_scale, logvar_scale), name='sigma_out')
 
     mixture = tf.Variable(tf.random_uniform([vocabulary_size, num_mixtures], 0, 0), name='mixture')
@@ -388,7 +388,7 @@ class Word2GMtrainer(object):
           log_e = tf.log(tf.reduce_sum(mix_stack*tf.exp(log_e_stack-log_e_max), axis=0))
           log_e += log_e_max
         return log_e
-        
+
 
     def Lfunc(word_idxs, pos_idxs, neg_idxs):
       with tf.name_scope('LossCal') as scope:
@@ -402,7 +402,7 @@ class Word2GMtrainer(object):
         mix_word = tf.nn.softmax(tf.nn.embedding_lookup(mixture, word_idxs), name='MixWord')
         mix_pos = tf.nn.softmax(tf.nn.embedding_lookup(mixture_out, pos_idxs), name='MixPos')
         mix_neg = tf.nn.softmax(tf.nn.embedding_lookup(mixture_out, neg_idxs), name='MixNeg')
-        
+
         epos = log_energy(mu_embed, sig_embed, mix_word, mu_embed_pos, sig_embed_pos, mix_pos)
         eneg = log_energy(mu_embed, sig_embed, mix_word, mu_embed_neg, sig_embed_neg, mix_neg)
         loss_indiv = tf.maximum(zeros_vec, objective_threshold - epos + eneg, name='CalculateIndividualLoss')
@@ -427,7 +427,7 @@ class Word2GMtrainer(object):
         to_update = tf.nn.embedding_lookup(embedding, idxs)
         to_update = tf.clip_by_norm(to_update, self.norm_cap, axes=2)
         return tf.scatter_update(embedding, idxs, to_update)
-    
+
     clip1 = clip_norm_ref(self._mus, word_idxs)
     clip2 = clip_norm_ref(self._mus, pos_idxs)
     clip3 = clip_norm_ref(self._mus, neg_idxs)
@@ -481,9 +481,11 @@ class Word2GMtrainer(object):
     try:
       print('Try using saver version v2')
       self.saver = tf.train.Saver(write_version=tf.train.SaverDef.V2, max_to_keep = opts.max_to_keep)
+      self.epoch_saver = tf.train.Saver(write_version=tf.train.SaverDef.V2)
     except:
       print('Default to saver version v1')
       self.saver = tf.train.Saver(max_to_keep=opts.max_to_keep)
+      self.epoch_saver = tf.train.Saver()
 
   def save_vocab(self):
     """Save the vocabulary to a file so the model can be reloaded."""
@@ -544,7 +546,7 @@ class Word2GMtrainer(object):
       step_manual += 1
 
     # save the model after each epoch
-    self.saver.save(self._session,
+    self.epoch_saver.save(self._session,
         os.path.join(opts.save_path, "model_epoch_%04d.ckpt" % initial_epoch),
         global_step=step.astype(int))
 
@@ -575,7 +577,7 @@ def main(_):
   with tf.Graph().as_default(), tf.Session() as session:
     model = Word2GMtrainer(opts, session)
     for _ in range(opts.epochs_to_train):
-      model.train()  
+      model.train()
     # Perform a final save.
     model.saver.save(session,
                      os.path.join(opts.save_path, "model.ckpt"),
