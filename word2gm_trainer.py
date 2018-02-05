@@ -471,7 +471,7 @@ class Word2GMtrainer(object):
       # Using Standard SGD
       self.optimize(loss)
 
-    tf.scalar_summary('learning rate', self._lr)
+    tf.summary.scalar('learning rate', self._lr)
 
     # Properly initialize all variables.
     self.check_op = tf.add_check_numerics_ops()
